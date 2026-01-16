@@ -4,7 +4,7 @@ import pickle
 
 @st.cache_resource
 def load_model():
-    with open("model.pkl", "rb") as f:
+    with open("house_price_model.pkl", "rb") as f:
         return pickle.load(f)
 
 model = load_model()
@@ -18,4 +18,5 @@ if st.button("Predict"):
     X = pd.DataFrame([[rooms, distance]], columns=["Rooms", "Distance"])
     price = model.predict(X)[0]
     st.success(f"Estimated price: ${price:.2f} thousand")
+
 
