@@ -1,61 +1,21 @@
-import os
-import pickle
+import streamlit as st
 import pandas as pd
-from flask import Flask, render_template, request, jsonify
+import pickle
 
-app = Flask(__name__)
+@st.cache_resource
+def load_model():
+    with open("model.pkl", "rb") as f:
+        return pickle.load(f)
 
-# Load model
-MODEL_PATH = "house_price_model.pkl"
-model = None
+model = load_model()
 
-if os.path.exists(MODEL_PATH):
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-    print("✅ Model loaded")
+st.title("🏠 House Price Predictor")
 
-@app.route("/")
-def home():
-    return render_template("index.html", model_loaded=model is not None)
+rooms = st.number_input("Rooms", 1.0, 15.0, 5.0)
+distance = st.number_input("Distance (km)", 0.1, 20.0, 2.0)
 
-@app.route("/predict", methods=["POST"])
-def predict():
-    if model is None:
-        return render_template("index.html", error="Model not loaded")
+if st.button("Predict"):
+    X = pd.DataFrame([[rooms, distance]], columns=["Rooms", "Distance"])
+    price = model.predict(X)[0]
+    st.success(f"Estimated price: ${price:.2f} thousand")
 
-    try:
-        rooms = float(request.form["rooms"])
-        distance = float(request.form["distance"])
-
-        if not (1 <= rooms <= 15):
-            return render_template("index.html", error="Rooms must be 1–15")
-
-        if not (0.1 <= distance <= 20):
-            return render_template("index.html", error="Distance must be 0.1–20 km")
-
-        X = pd.DataFrame([[rooms, distance]], columns=["Rooms", "Distance"])
-        price = round(model.predict(X)[0], 2)
-
-        return render_template(
-            "index.html",
-            prediction=f"${price} thousand",
-            rooms=rooms,
-            distance=distance,
-            model_loaded=True
-        )
-
-    except Exception as e:
-        return render_template("index.html", error=str(e))
-
-@app.route("/api/predict", methods=["POST"])
-def api_predict():
-    data = request.get_json()
-    X = pd.DataFrame([[data["rooms"], data["distance"]]],
-                     columns=["Rooms", "Distance"])
-    prediction = model.predict(X)[0]
-
-    return jsonify({"prediction": round(prediction, 2)})
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
